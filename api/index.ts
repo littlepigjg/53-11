@@ -7,14 +7,28 @@ import shareRouter from './routes/share.js';
 import annotationsRouter from './routes/annotations.js';
 import reviewRouter from './routes/review.js';
 import exportRouter from './routes/export.js';
+import complianceRouter from './routes/compliance.js';
+import pipelineRouter from './routes/pipeline.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { FileStorageService } from './services/FileStorageService.js';
+import { ComplianceScanService } from './services/ComplianceScanService.js';
+import { ComplianceRuleService } from './services/ComplianceRuleService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '..', 'dist');
 const publicDir = path.resolve(__dirname, '..', 'public');
 
 await FileStorageService.ensureDirs();
+await ComplianceRuleService.ensureInitialized();
+await ComplianceScanService.ensureInitialized();
+
+setInterval(async () => {
+  try {
+    await ComplianceScanService.checkRulesUpdateAndRescan();
+  } catch {
+    // ignore
+  }
+}, 5 * 60 * 1000);
 
 const app = express();
 
@@ -29,8 +43,10 @@ app.use('/api/share', shareRouter);
 app.use('/api/annotations', annotationsRouter);
 app.use('/api/review', reviewRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/compliance', complianceRouter);
+app.use('/api/pipeline', pipelineRouter);
 
-app.get(['/', '/review/*', '/admin/*'], (_req, res) => {
+app.get(['/', '/review/*', '/admin/*', '/compliance/*', '/scan/*'], (_req, res) => {
   res.sendFile(path.join(distDir, 'index.html'));
 });
 
